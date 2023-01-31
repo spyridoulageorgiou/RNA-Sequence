@@ -1,0 +1,6 @@
+/data/courses/rnaseq_course/lncRNAs/Project2/users/SGeorgiou/Data/bam_files_reverse/3_2_L3.bam
+/data/courses/rnaseq_course/lncRNAs/Project2/users/SGeorgiou/Data/bam_files_reverse/3_4_L3.bam
+/data/courses/rnaseq_course/lncRNAs/Project2/users/SGeorgiou/Data/bam_files_reverse/3_7_L3.bam
+/data/courses/rnaseq_course/lncRNAs/Project2/users/SGeorgiou/Data/bam_files_reverse/P1_L3_R2.bam
+/data/courses/rnaseq_course/lncRNAs/Project2/users/SGeorgiou/Data/bam_files_reverse/P2_L3_R2.bam
+/data/courses/rnaseq_course/lncRNAs/Project2/users/SGeorgiou/Data/bam_files_reverse/P3_L3_R2.bam
