@@ -1,0 +1,100 @@
+####################################################### A. FANTOM #####################################################
+
+################ 1. Prepare datasets (2 files containing the TSS and polyA of Differentially expressed transcripts & 1 file containing novel transcripts) ###########################
+#Prepare annotation of transcripts and novel ones
+awk -F "\t" '$3 == "transcript"' merged.gtf | cut -f1,4,5,7,9  > transcripts.bed
+
+
+#Keep only differentially expressed transcripts
+cut -f1 transcripts.DEGs.txt > DEGs.txt
+grep -Fwf DEGs.txt transcripts.bed > DEG_transcripts_data.bed
+
+grep -v gene_name DEG_transcripts_data.bed > novel.trans.bed
+
+###Estimate novel transcripts: 132
+#cut -f5 DEG_transcripts_data.bed | awk -F ";" '{ print $2 }' | grep "MSTRG" | wc -l
+### Known transcripts: 594
+#cut -f5 DEG_transcripts_data.bed | awk -F ";" '{ print $2 }' | grep -v "MSTRG" | wc -l
+
+###Create TSS data for transcripts
+#-F tab separated
+#-v output tab-separated
+awk -F "\t" -v OFS='\t' '{if ($4 == "+") {print $1,$2,$2+1,$4,$5} else {print $1,$3-1,$3,$4,$5}}' DEG_transcripts_data.bed  | sort -k1,1 -k2,2n > TSS_transcripts.bed
+
+
+#### Accordingly create a file for poly A tail #####
+awk -F "\t" -v OFS='\t' '{if ($4 == "+") {print $1,$3-1,$3,$4,$5} else {print $1,$2,$2+1,$4,$5}}' DEG_transcripts_data.bed  | sort -k1,1 -k2,2n > polyA_transcripts.bed
+
+##### 2. Analysis using FANTOM Data ####
+#Download TSS file from FANTOM5
+wget https://fantom.gsc.riken.jp/5/datafiles/phase1.3/extra/TSS_classifier/TSS_human.bed.gz
+
+gunzip TSS_human.bed.gz
+
+#Sort FANTOM dataset to use as input for bedtools
+sort -k1,1 -k2,2n TSS_human.bed > TSS.sorted.bed
+
+#Use bedtools window (+- 100bp). Result: 71/726
+module load UHTS/Analysis/BEDTools/2.29.2
+
+bedtools window -a TSS_transcripts.bed -b TSS.sorted.bed -w 100 -u | wc -l
+
+bedtools window -a TSS_transcripts.bed -b TSS.sorted.bed -w 100 -u > FANTOM_overlap.txt
+
+####### 3. Perform same analysis with the annotated trancripts based on the annotation-correct.R script (Using Biomart as database #####
+
+#Sort the annotation file
+awk -F "\t" -v OFS='\t' '{if ($4 == "1") {print $1,$2,$2+1,$4,$5} else {print $1,$3-1,$3,$4,$5}}' transcripts.annotation.txt  | sort -k1,1 -k2,2n > TSS.annotation.bed
+
+
+###Check start site. Result: 610/726 
+bedtools window -a TSS_transcripts.bed -b TSS.annotation.bed -w 100 -u | wc -l
+
+
+########## 4. Perform analysis for the polyA tails using the basel database ######
+# prepare polyA dataset #
+wget https://polyasite.unibas.ch/download/atlas/2.0/GRCh38.96/atlas.clusters.2.0.GRCh38.96.bed.gz
+gunzip atlas.clusters.2.0.GRCh38.96.bed.gz
+
+#Add chr string in first column
+sed 's/^\([^ ]*\)/chr\1/' atlas.clusters.2.0.GRCh38.96.bed > atlas.clusters.2.0.GRCh38.96_chr.bed
+
+sort -k1,1 -k2,2n atlas.clusters.2.0.GRCh38.96_chr.bed > atlas.sorted.bed
+
+#Result:505/726
+bedtools window -a polyA_transcripts.bed -b atlas.sorted.bed -w 100 -u | wc -l
+bedtools window -a polyA_transcripts.bed -b atlas.sorted.bed -w 100 -u > polyA_tail.overlap.txt
+
+############################################# B. CPAT analysis ###########################################################3
+
+###Installation
+
+sudo apt install python3-pip
+pip3 install CPAT
+
+
+wget https://sourceforge.net/projects/rna-cpat/files/v1.2.2/prebuilt_model/Human_Hexamer.tsv/download
+
+mv download human_hexamer.tsv
+
+wget https://sourceforge.net/projects/rna-cpat/files/v1.2.2/prebuilt_model/Human_logitModel.RData/download
+mv download human_logitModel.RData
+
+
+wget https://sourceforge.net/projects/rna-cpat/files/v1.2.2/prebuilt_model/Human_cutoff.txt/download
+mv download Human_cutoff.txt
+
+#Download hg38 information
+wget http://hgdownload.soe.ucsc.edu/goldenPath/hg38/bigZips/hg38.fa.gz
+gunzip hg38.fa.gz
+
+#Extract fasta sequence from bed file
+bedtools getfasta -fi hg38.fa -bed novel.trans.bed > novel.transcripts.fasta
+
+########################## C. How many novel “intergenic” (not overlapping annotated protein coding gene spans) genes have you identified? ###########
+
+#Use the annotation file from biomart (with the whole genome this time) and keep only protein coding genes
+grep protein_coding hg38.annotation.txt | sort -k1,1 -k2,2n > protein.coding.genes.txt
+
+#Result: 43 novel transcripts are intergenic
+bedtools intersect -a novel.trans.bed -b protein.coding.genes.txt -v | wc -l
