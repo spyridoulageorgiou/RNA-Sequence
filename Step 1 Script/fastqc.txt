@@ -1,0 +1,14 @@
+#Step1  # /data/courses/rnaseq_course/lncRNAs/Project2/users/SGeorgiou/Data/fastq/fastq_that_we_need/ #
+
+#Count number of reads
+echo $(zcat *.fastq.gz|wc -l)/4|bc
+
+for i in *.fastq.gz
+do
+echo $(zcat $i|wc -l)/4|bc >> read_number.txt
+done
+
+FASTQC=/data/courses/rnaseq_course/lncRNAs/Project2/users/SGeorgiou/FastQC/fastqc
+$FASTQC *.gz
+
+
