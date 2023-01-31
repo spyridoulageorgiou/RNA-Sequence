@@ -1,0 +1,106 @@
+#Step 3   # /data/courses/rnaseq_course/lncRNAs/Project2/users/SGeorgiou/Data/gtf_files_reverse/ #
+
+#stringtie
+module load UHTS/Aligner/stringtie/1.3.3b
+
+GENOME=/data/courses/rnaseq_course/lncRNAs/Project2/users/SGeorgiou/genomes/gencode.v42.annotation.gtf
+CORES=8
+
+for FILE in /data/courses/rnaseq_course/lncRNAs/Project2/users/SGeorgiou/Data/bam_files_reverse/*.bam
+do
+SAMPLE=`basename $FILE | sed s/\.bam//`
+stringtie -p $CORES -G $GENOME -o $SAMPLE".gtf" $SAMPLE".bam"
+done
+
+#Merge gtf files
+stringtie --merge -G $GENOME -o merged.gtf *.gtf
+
+#How many exons, transcripts and genes are in your meta-assembly?
+#exons
+#cut -f3 sample.gtf | grep exon | wc -l
+
+#How many exons
+for FILE in *.gtf
+do
+cut -f3 $FILE | grep exon | wc -l
+done
+
+#How many transcripts
+for FILE in *.gtf
+do
+cut -f3 $FILE | grep transcript | wc -l
+done
+
+#How many genes
+for FILE in *.gtf
+do
+cut -f9 $FILE |  awk -F "; " '{ print $1 }' | uniq | wc -l
+done
+
+#How many of these are novel, ie do not have an associated GENCODE identifier?
+#How many novel transcripts?
+#1. Take 9nth column of lines containing transcript
+#2. Use as separator ; and print the 2nd column (it contains ids if transcript is in the genome or not)
+#3. Keep only the line that do not have the gencode identifier
+#4. Count lines
+awk -F "\t" '$3 == "transcript" { print $9 }' merged.gtf | awk -F "; " '{ print $2 }' | grep -v ENST | wc -l
+
+for FILE in *.gtf
+do
+awk -F "\t" '$3 == "transcript" { print $9 }' $FILE | awk -F "; " '{ print $2 }' | grep -v ENST | wc -l
+done
+
+#Quality check: How many transcripts and genes are composed of just a single exon? (We
+usually consider “single exon” structures to have lower confidence than multi-exon ones).
+Deliverable: One meta-assembly GTF format file.
+
+#1. Get only lines with exons in 3rd column
+#2. print second column using ; delimiter
+#3. Get number of how many exons we have for each transcript -> this information is located on the first column but is space separated
+#4. Print first column based on space separation
+#5. Get all the lines that have exactly one count (-w)
+#6. Get number of lines
+awk -F "\t" '$3 == "exon" { print $9 }' merged.gtf | awk -F "; " '{ print $2 }' | uniq -c | awk '{ print $1 }' | grep -w 1 | wc -l
+
+
+awk -F "\t" '$3 == "transcript" { print $9 }' merged.gtf | awk -F "; " '{ print $2 }' | uniq -c | awk '{ print $1 }' | grep -w 1 | wc -l
+
+
+
+
+
+#Single exon novel transcripts
+awk -F "\t" '$3 == "exon" { print $9 }' merged.gtf | grep -v ENST | awk -F "; " '{ print $2 }' | uniq -c | awk '{ print $1 }'  | grep -w 1 | wc -l
+
+#Single exon novel genes
+awk -F "\t" '$3 == "exon" { print $9 }' merged.gtf | grep -v ENST | awk -F "; " '{ print $1 }' | uniq -c | awk '{ print $1 }'  | grep -w 1 | wc -l
+
+
+###Download BAM Files
+
+scp sgeorgiou@binfservms01.unibe.ch:/data/courses/rnaseq_course/lncRNAs/Project2/users/SGeorgiou/Data/bam_files_reverse/*.bam /home/Spyridoula/Desktop
+
+
+
+
+
+IGNORE THESE:
+ALL PARENTAL ONES SHOULD BE USED BY BOTH GROUPS THE CONTROLS THE DIFFERENCIAL ANALYSIS AGAINST
+3.2/3.4/3.7
+MEROCLONES (YOU CAN USE THEM OR NOT) THE DIFFERENCIAL EXPRESSION ONE MORE TIME 
+ΤΟ ΕΡΩΤΗΜΑ 3 ΤΟ ΘΕΛΟΥΜΕ ΓΙΑ ΤΟΝ ΜΕΡΤΖΝΤ ΦΑΚΕΛΟ
+there is a chance that there are novel exons let's say 10.000, but this is just noise.
+put merged gtf file in igv
+gtf + genome fasta + gff read for kalisto
+sleuth(?)
+bigwig to load all the ban files
+
+
+download bam file with secure copy
+the important thing to find is how many of the novel transcipt are single exons
+check the blue and the red ribbons in igv. shashimi plot shows the transcript and the slpice junctions
+callisto: quantifies gene expression
+kallisto --> GTF + FASTA of the genome -(we use gff read which extracts the transcriptome sequence)-> Quantify
+kallisto pseudoalligns the reads to the transcriptome
+or htseq count
+fastq --> GTF + FASTA of the genome -(we use gff read which extracts the transcriptome sequence)-> Kallisto
